@@ -225,7 +225,7 @@ We can also check how to word frequencies are different for each genre:
     ncol = 3, nrow = 2, top = 'Figure 4: Word frequencies by genre') 
 ```
 
-Soul seems to be about *love* and *tears*, rap has a lot of cursing, metal is about *struggle* and *misery* and reggae is about *love* and the *people*. Sound accurate.
+Soul seems to be about *love* and *tears*, rap has a lot of cursing, metal is about *struggle* and *misery* and reggae is about *love* and the *people*. Sounds accurate.
 
 ### Is This Love
 
@@ -299,7 +299,8 @@ tf_idf %>%
   geom_col(show.legend = FALSE) +
   labs(x = NULL, y = "tf-idf") +
   facet_wrap(~ genre, ncol = 3, scales = 'free') +
-  coord_flip()
+  coord_flip() +
+  ggtitle("Figure 7: Highest tf-idf words per Genre")
 ```
 Metal is pretty straight-forward: we see important words like *misery* and *struggle*, which are not that common in other genres. Pop and Rap is less representative:  MJ's highest tf-idf words are mostly his song titles (*billie*, *jean*, *startin'*, *somethin'*, *thriller* etc.), while Slim Shady uniquely mentions Dr Dre and himself (*marshall*).
 Reggae is using [patois](https://en.wikipedia.org/wiki/Jamaican_Patois) slangs like *jah*, and speaks about *movement* and *exodus*. Rock is about *hell*, *drink*ing, and singing about Rock'n'*roll* itself. 
@@ -329,7 +330,8 @@ topics %>%
   ggplot(aes(term, beta, fill = factor(topic))) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~ topic, scales = 'free') +
-  coord_flip()
+  coord_flip() +
+  ggtitle("Figure 8: Topic modeling using LDA")
 ```
 
 These word choices among topics again imply that it mainly depends on the genre of music which words are chosen and which topics are discussed.
