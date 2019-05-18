@@ -5,22 +5,85 @@ date: "May 18th, 2019"
 output: html_document
 ---
 
+<style>
+body {
+text-align: justify}
+</style>
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-# Chapter 1
+# Nothing Else Matters
 
 ```{r libraries, results = 'hide'}
 library(tidytext)
 library(dplyr)
+library(kableExtra)
+library(stringr)
 ```
 
-## remove [%], x2 etc.
+
+*"De gustibus non est disputandum"* - goes the latin phrase.
+
+As each of us have our own preferences in music, different backgrounds that make us resonate with different topics and feelings, it might be the truth that *"In matters of taste, there can be no disputes"*.
+However, highly successfull artists can be easily differentiated from mediocre ones. Success can be measured by number of records sold, plays on Spotify, sold-out venues all around the world etc.
+
+The following meme gives an excessive perspective on how song lyrics can be entirely different, coming from two highly successful musicians:
+
+```{r pressure, echo=FALSE, fig.cap="Figure 1: Lyrics depth", out.width = '100%'}
+knitr::include_graphics("intro.jpg")
+```
+
+This article does not want to take sides with either Beyoncé or Freddy Mercury, but rather investigate the word choices, lyrical motives, topics and feelings used in highly successfull works of music.
+
+Does song lyrics have any impact on the success of an artist, or is it all about production value, catchiness and nothing else matters?
+
+
+# What Do You Do For Money Honey
 
 ```{r import}
 require(XLConnect)
 wb = loadWorkbook("songlyrics.xlsx")
 df = readWorksheet(wb, sheet = "songlyrics", header = TRUE)
 ```
+
+The `songlyrics.xlsx` dataset contains lyrics for 6 emblematic figures of different genres and times, using their most sold album.
+
+```{r artists, error = FALSE, echo = FALSE}
+table <- data.frame(unique(df$artist), unique(df$album))
+names(table) <- c("artist", "album")
+kable(table, caption = 'Table 1: Artists and albums') %>%
+  kable_styling('striped', full_width = F, position = 'center', latex_options = 'hold_position') %>%
+  row_spec(0, color = 'white', background = 'orange', align ='c') %>%
+  footnote(general = "Source: Wikipedia.org")
+```
+
+The dataset only needs slight data cleaning:
+
+* In some songs, brackets are used to signal [Verse], [Chorus] or artists that perform a part of the song, [Dr. Dre] etc. These will be removed.
+* It needs to be tranformed into `tidytext`˛format: one token (word) per row.
+* We have do create a custom stop words dictionary for meaningless words like James Hetfield's *"yeah"*s, Eminem's *"yo"*s and Michael Jackson's *"Ma ma se, ma ma sa, ma ma coo sa"*s.
+
+```{r stopwords}
+custom_stop_words <- bind_rows(tibble(word = c("ma","se", "sa", "coo", "yeah", "na", "whoo", "ow", "aw", "ooh",
+                                               "yea", "aaaaahaaaahaaaah", "oooh", "ooo", "ha", "vrrm", "dah",
+                                               "da", "um", "la", "yo", "huh", "ya", "eh", "ou", "woe", "yoe"), 
+                                          lexicon = c("custom")), 
+                               stop_words)
+```
+
+```{r cleantoken}
+tidy_df <- df %>% 
+  unnest_tokens(word, lyrics) %>% 
+  anti_join(custom_stop_words, by = 'word')
+View(tidy_df)
+
+tidy_df$word <- tidy_df$word %>% 
+  str_remove("[\\divxlc]")
+
+tidy_df %>% 
+  filter(word == 2)
+```
+
 
