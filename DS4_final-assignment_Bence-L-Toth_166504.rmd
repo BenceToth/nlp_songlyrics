@@ -22,8 +22,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Nothing Else Matters
-
 ```{r libraries, results = 'hide'}
 library(tidytext)
 library(dplyr)
@@ -35,6 +33,7 @@ library(data.table)
 library(gridExtra)
 ```
 
+### Nothing Else Matters
 
 *"De gustibus non est disputandum"* - goes the latin phrase.
 
@@ -47,12 +46,12 @@ The following meme gives an excessive perspective on how song lyrics can be enti
 knitr::include_graphics("intro.jpg")
 ```
 
-This article does not want to take sides with either Beyoncé or Freddy Mercury, but rather investigate the word choices, lyrical motives, topics and feelings used in highly successfull works of music.
+This article does not want to take sides with either Beyonce or Freddy Mercury, but rather investigate the word choices, lyrical motives, topics and feelings used in highly successfull works of music.
 
-Does song lyrics have any impact on the success of an artist, or is it all about production value, catchiness and nothing else matters?
+Do song lyrics have any impact on the success of an artist, or is it all about production value, catchiness and nothing else matters?
 
 
-## What Do You Do For Money Honey
+### What Do You Do For Money Honey
 
 ```{r import}
 require(XLConnect)
@@ -60,7 +59,7 @@ wb = loadWorkbook("songlyrics.xlsx")
 df = data.frame(readWorksheet(wb, sheet = "songlyrics", header = TRUE))
 ```
 
-The `songlyrics.xlsx` dataset contains lyrics for 6 emblematic figures of different genres and times, using their most sold album.
+The `songlyrics.xlsx` dataset contains lyrics for 6 emblematic figures of different genres and times, using their most sold album. It includes release year, artist, album, genre, number of records sold and amound of revenue generated, along with the lyrics of each song from that album. The following artist and albums are used during the analysis:
 
 ```{r artists, error = FALSE, echo = FALSE}
 table <- data.frame(unique(df$artist), unique(df$album))
@@ -71,12 +70,12 @@ kable(table, caption = 'Table 1: Artists and albums') %>%
   footnote(general = "Source: Wikipedia.org")
 ```
 
-## Cleanin' Out My Closet
+### Cleanin' Out My Closet
 
 The dataset only needs slight data cleaning:
 
 * In some songs, brackets are used to signal [Verse], [Chorus] or artists that perform a part of the song, [Dr. Dre] etc. These will be removed.
-* It needs to be tranformed into `tidytext`˛format: one token (word) per row.
+* It needs to be tranformed into `tidytext` format: one token (word) per row.
 * We have do create a custom stop words dictionary for meaningless words like James Hetfield's *"yeah"*s, Eminem's *"yo"*s and Michael Jackson's *"Ma ma se, ma ma sa, ma ma coo sa"*s.
 * Remove numbers.
 
@@ -97,7 +96,7 @@ tidy_df <- df %>%
 tidy_df <- subset(tidy_df, !grepl("[0-9]", word))
 ```
 
-## Wanna Be Startin' Somethin'
+### Wanna Be Startin' Somethin'
 
 Let's start by using `dplyr`'s `count()` to find the most common words used:
 
@@ -209,7 +208,7 @@ We can also check how word frequencies are different for each genre:
       geom_col() +
       xlab(NULL) +
       coord_flip() +
-      ggtitle('rock'),
+      ggtitle('Rock'),
     tidy_df %>%
       filter(artist == 'Bob Marley & The Wailers') %>% 
       count(word, sort = TRUE) %>%
@@ -220,12 +219,102 @@ We can also check how word frequencies are different for each genre:
       xlab(NULL) +
       coord_flip() +
       ggtitle('Reggae'),
-    ncol = 3, nrow = 2) 
+    ncol = 3, nrow = 2, top = 'Figure 4: Word frequencies by genre') 
 ```
 
-Soul is about *love* and *tears*, rap has a lot of cursing, metal is about *struggle* and *misery* and reggae is about *love* and the *people*.
+Soul seems to be about *love* and *tears*, rap has a lot of cursing, metal is about *struggle* and *misery* and reggae is about *love* and the *people*. Sound accurate.
 
-## Is This Love
+### Is This Love
+
+To gain more insight about the success of these songs, let's investigate how do they work with feelings, by joining a sentiment lexicon.
+
+First, we can see what is the average sentiment score for each genre. Is it true that reggae is about making us feel happy while metal touches on our negative feelings?
+
+```{r sent_overall}
+sentiments <- tidy_df %>%
+  count(genre, word, sort = TRUE) %>% 
+  ungroup() %>% 
+  inner_join(get_sentiments("afinn"), by = "word") %>%
+  group_by(genre) %>%
+  summarize(score = sum(score * n) / sum(n))
+
+sentiments %>%
+  mutate(genre = reorder(genre, score)) %>%
+  ggplot(aes(genre, score, fill = score > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  ylab("Average sentiment score") +
+  ggtitle('Figure 5: Sentiments per Genre')
+```
+
+It turned out as expected for the "happy" genres, but surprisingly, rock has an overall more negative sentiment than metal, and rap surpasses both.
+
+To dig deeper into this phenomenon, let's see the most influential words contributing to this average sentiment.
+
+
+```{r sent_words}
+sentiment_words <- tidy_df %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(genre, word, sentiment, sort = TRUE) %>% 
+  ungroup()
+
+sentiment_words %>% 
+  group_by(genre, sentiment) %>% 
+  top_n(5) %>% 
+  ungroup() %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~genre, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip() +
+  ggtitle('Figure 6: Words contributing to sentiments per genre')
+```
+
+Now we see why rap turned out to be the most negative, looking at the excessive number of swear words. They might be treated as stop words, but they also carry meaning. My hypothesis is that if the song contains many words from the S-F-B triangle, it is probably not about a happy topic.
+
+There are also some mischaracterized words: *shake* in rock is about dancing/moving ("*Shake a leg*"), and it is a rather neutral word. Of course the word *jam* in reggae is not negative either, playing music together has more of a positive sentiment.
+
+### One And Only
+
+We can quantify what each genre is about using the *tf-idf* statistic. It shows how important a word is to a genre in a collection of genres.
+
+```{r tdidf}
+tf_idf <- tidy_df %>% 
+  count(genre, word) %>% 
+  ungroup() %>% 
+  bind_tf_idf(word, genre, n) %>% 
+  arrange(desc(tf_idf))
+
+tf_idf %>% 
+  mutate(word = factor(word, levels = rev(unique(word)))) %>% 
+  group_by(genre) %>% 
+  top_n(10) %>% 
+  ungroup() %>% 
+  ggplot(aes(word, tf_idf, fill = genre)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = NULL, y = "tf-idf") +
+  facet_wrap(~ genre, ncol = 3, scales = 'free') +
+  coord_flip()
+```
+Metal is pretty straight-forward: we see important words like *misery* and *struggle*, which are not that common in other genres. Pop and Rap is less representative:  MJ's highest tf-idf words are mostly his song titles (*billie*, *jean*, *startin'*, *somethin'*, *thriller* etc.), while Slim Shady uniquely mentions Dr Dre and his daughter, *Hailie*.
+Reggae is using [patois](https://en.wikipedia.org/wiki/Jamaican_Patois) slangs like *jah*, and speaks about *movement* and *exodus*. Rock is about *hell*, *drink*ing, and singing about Rock'n'*roll* itself. 
+
+### The Struggle Within
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+### When The Music Stops
