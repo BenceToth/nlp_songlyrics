@@ -23,6 +23,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r libraries, results = 'hide'}
+rm(list = ls())
 library(tidytext)
 library(dplyr)
 library(kableExtra)
@@ -31,14 +32,15 @@ library(ggplot2)
 library(tidyr)
 library(data.table)
 library(gridExtra)
+library(topicmodels)
 ```
 
 ### Nothing Else Matters
 
 *"De gustibus non est disputandum"* - goes the latin phrase.
 
-As each of us have our own preferences in music, different backgrounds that make us resonate with different topics and feelings, it might be the truth that *"In matters of taste, there can be no disputes"*.
-However, highly successfull artists can be easily differentiated from mediocre ones. Success can be measured by number of records sold, plays on Spotify, sold-out venues all around the world etc.
+As each of us has our own preferences in music, different backgrounds that make us resonate with different topics and feelings, it might be the truth that *"In matters of taste, there can be no disputes"*.
+However, highly successful artists can be easily differentiated from mediocre ones. Success can be measured by the number of records sold, plays on Spotify, sold-out venues all around the world, etc.
 
 The following meme gives an excessive perspective on how song lyrics can be entirely different, coming from two highly successful musicians:
 
@@ -46,7 +48,7 @@ The following meme gives an excessive perspective on how song lyrics can be enti
 knitr::include_graphics("intro.jpg")
 ```
 
-This article does not want to take sides with either Beyonce or Freddy Mercury, but rather investigate the word choices, lyrical motives, topics and feelings used in highly successfull works of music.
+This article does not want to take sides with either Beyonce or Freddy Mercury, but rather investigate the word choices, lyrical motives, topics and feelings used in highly successful works of music.
 
 Do song lyrics have any impact on the success of an artist, or is it all about production value, catchiness and nothing else matters?
 
@@ -55,19 +57,18 @@ Do song lyrics have any impact on the success of an artist, or is it all about p
 
 ```{r import}
 require(XLConnect)
-wb = loadWorkbook("songlyrics.xlsx")
-df = data.frame(readWorksheet(wb, sheet = "songlyrics", header = TRUE))
+wb <-  loadWorkbook("songlyrics.xlsx")
+df <-  data.frame(readWorksheet(wb, sheet = "songlyrics", header = TRUE))
 ```
 
-The `songlyrics.xlsx` dataset contains lyrics for 6 emblematic figures of different genres and times, using their most sold album. It includes release year, artist, album, genre, number of records sold and amound of revenue generated, along with the lyrics of each song from that album. The following artist and albums are used during the analysis:
+The `songlyrics.xlsx` dataset contains lyrics for 6 emblematic figures of different genres and times, using their most sold album. It includes release year, artist, album, genre, number of records sold and amount of revenue generated, along with the lyrics of each song from that album. The following artists and albums are used during the analysis:
 
 ```{r artists, error = FALSE, echo = FALSE}
 table <- data.frame(unique(df$artist), unique(df$album))
 names(table) <- c("artist", "album")
 kable(table, caption = 'Table 1: Artists and albums') %>%
   kable_styling('striped', full_width = F, position = 'center', latex_options = 'hold_position') %>%
-  row_spec(0, color = 'white', background = 'orange', align ='c') %>%
-  footnote(general = "Source: Wikipedia.org")
+  row_spec(0, color = 'white', background = 'orange', align ='c')
 ```
 
 ### Cleanin' Out My Closet
@@ -75,8 +76,8 @@ kable(table, caption = 'Table 1: Artists and albums') %>%
 The dataset only needs slight data cleaning:
 
 * In some songs, brackets are used to signal [Verse], [Chorus] or artists that perform a part of the song, [Dr. Dre] etc. These will be removed.
-* It needs to be tranformed into `tidytext` format: one token (word) per row.
-* We have do create a custom stop words dictionary for meaningless words like James Hetfield's *"yeah"*s, Eminem's *"yo"*s and Michael Jackson's *"Ma ma se, ma ma sa, ma ma coo sa"*s.
+* It needs to be transformed into `tidytext` format: one token (word) per row.
+* We have to create a custom stop words dictionary for meaningless words like James Hetfield's *"yeah"*s, Eminem's *"yo"*s and Michael Jackson's *"Ma ma se, ma ma sa, ma ma coo sa"*s.
 * Remove numbers.
 
 ```{r stopwords}
@@ -89,6 +90,8 @@ custom_stop_words <- bind_rows(tibble(word = c("ma","se", "sa", "coo", "yeah", "
 
 
 ```{r cleantoken}
+df$lyrics <- str_remove_all(df$lyrics, pattern = regex("\\[(.*?)\\]"))
+
 tidy_df <- df %>% 
   unnest_tokens(word, lyrics) %>% 
   anti_join(custom_stop_words, by = 'word')
@@ -112,7 +115,7 @@ tidy_df %>%
   coord_flip()
 ```
 
-It is not surprising that the word *love* is the most used word out of all meaningful words in the dataset. *Gonna* and *wanna* might be considered as stop words. Words like *girl*, *baby* and *heart* are also connected to the topic of love and relationships. Furthermore, we see that Eminem loves talking about himself.
+It is not surprising that the word *love* is the most used word out of all meaningful words in the dataset. *Gonna* and *wanna* might be considered as stop words. Words like *girl*, *baby* and *heart* are also connected to the topic of love and relationships.
 
 The plot below shows how 3 artists use words differently:
 
@@ -145,7 +148,7 @@ ggplot(frequency, aes(x = proportion, y = `Metallica`, color = abs(`Metallica` -
   labs(y = 'Metallica', x = NULL)
 ```
 
-There are not many common words used by the representatives of different genres. They use *head*, *call* and *boy* in relatively similar proportions, but Metallica sings about being *broken*, *free* and *dream*s way more than Eminem or Adele. 
+There are not many common words used by representatives of different genres. They use *head*, *call*, and *boy* in relatively similar proportions, but Metallica sings about being *broken*, *free* and *dream*s way more than Eminem or Adele. 
 To quantify their differences, we can use Pierson's correlation. Its 0.03 for Adele and Metallica and 0.09 for Metallica and Eminem.
 
 ```{r corrtest}
@@ -155,7 +158,7 @@ cor.test(data = frequency[frequency$author == 'Eminem', ], ~ proportion + `Metal
 
 This is expected, as the dataset spans over 31 years (1980-2011) and uses 6 different genres. It was expected that different types of music will have different word choices.
 
-We can also check how word frequencies are different for each genre:
+We can also check how to word frequencies are different for each genre:
 
 ```{r wordbyartist, echo = FALSE}
 
@@ -226,7 +229,7 @@ Soul seems to be about *love* and *tears*, rap has a lot of cursing, metal is ab
 
 ### Is This Love
 
-To gain more insight about the success of these songs, let's investigate how do they work with feelings, by joining a sentiment lexicon.
+To gain more insight into the success of these songs, let's investigate how do they work with feelings, by joining a sentiment lexicon.
 
 First, we can see what is the average sentiment score for each genre. Is it true that reggae is about making us feel happy while metal touches on our negative feelings?
 
@@ -274,11 +277,11 @@ sentiment_words %>%
 
 Now we see why rap turned out to be the most negative, looking at the excessive number of swear words. They might be treated as stop words, but they also carry meaning. My hypothesis is that if the song contains many words from the S-F-B triangle, it is probably not about a happy topic.
 
-There are also some mischaracterized words: *shake* in rock is about dancing/moving ("*Shake a leg*"), and it is a rather neutral word. Of course the word *jam* in reggae is not negative either, playing music together has more of a positive sentiment.
+There are also some mischaracterized words: *shake* in rock is about dancing/moving ("*Shake a leg*"), and it is a rather neutral word. Of course, the word *jam* in reggae is not negative either, playing music together has more of positive sentiment.
 
 ### One And Only
 
-We can quantify what each genre is about using the *tf-idf* statistic. It shows how important a word is to a genre in a collection of genres.
+We can quantify what each genre is about using the *tf-idf* statistic. It shows how important one word is to a genre in a collection of genres for that genre.
 
 ```{r tdidf}
 tf_idf <- tidy_df %>% 
@@ -298,23 +301,49 @@ tf_idf %>%
   facet_wrap(~ genre, ncol = 3, scales = 'free') +
   coord_flip()
 ```
-Metal is pretty straight-forward: we see important words like *misery* and *struggle*, which are not that common in other genres. Pop and Rap is less representative:  MJ's highest tf-idf words are mostly his song titles (*billie*, *jean*, *startin'*, *somethin'*, *thriller* etc.), while Slim Shady uniquely mentions Dr Dre and his daughter, *Hailie*.
+Metal is pretty straight-forward: we see important words like *misery* and *struggle*, which are not that common in other genres. Pop and Rap is less representative:  MJ's highest tf-idf words are mostly his song titles (*billie*, *jean*, *startin'*, *somethin'*, *thriller* etc.), while Slim Shady uniquely mentions Dr Dre and himself (*marshall*).
 Reggae is using [patois](https://en.wikipedia.org/wiki/Jamaican_Patois) slangs like *jah*, and speaks about *movement* and *exodus*. Rock is about *hell*, *drink*ing, and singing about Rock'n'*roll* itself. 
 
 ### The Struggle Within
 
+Let's see what different topics lie within the lines of these songs, using Latent Dirichlet Allocation.
 
+```{r lda}
 
+topics <- LDA(cast_dtm(data = tidy_df %>% 
+               count(artist, word) %>% 
+               ungroup(),
+             term = word,
+             document = artist, 
+             value = n),
+    k = 6, control = list(seed = 42)) %>% 
+  tidy(matrix = "beta") %>% 
+  group_by(topic) %>%
+  arrange(desc(beta)) %>% 
+  top_n(12, beta) %>% 
+  ungroup()
 
+topics %>% 
+  arrange(topic, -beta) %>% 
+  mutate(term = reorder(term, beta)) %>% 
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = 'free') +
+  coord_flip()
+```
 
+These word choices among topics again imply that it mainly depends on the genre of music which words are chosen and which topics are discussed.
 
-
-
-
-
-
-
-
-
+The first topic is mainly about enjoying *life*, being in *love* with a *girl*, and happiness in general. Most of the words are similar to the most highly used words in reggae. Topic 6 is about a breakup, with words like *heart*, *time*, *met* and *tears*, most of them coming from the soul lyrics.
 
 ### When The Music Stops
+
+This analysis only focused on 6 artists and their most sold album to draw conclusions about what successful pieces of music are about. The outcomes definitely have some bias towards the artists themselves, but we can still draw a picture of their word usage and topics.
+
+What makes a song successful is very much dependent on which genre does it belong to. Rap, rock and metal songs tend to have a more negative message, profane lyrics at times, talking about the pain and struggles of the author. Pop and soul singers tend to focus on love and breakup, using more positive words and they are about relationships.
+
+This analysis can easily be repeated with more data to drive more general conclusions about the state of the music industry, and including less successful artist can further unfold the topic of what makes a successful song, which word choices and topics lead to higher sales and revenue.
+
+### Exodus
+
+This analysis is based on the works of Julia Silge and David Robinson, with a focus on their book, [Text Mining with R](https://www.tidytextmining.com/index.html). It was done as a requirement for the Data Science 4 - Unstructured Text Analysis course at Central European University in Hungary.
