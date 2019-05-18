@@ -1,0 +1,26 @@
+---
+title: "Data Science 4 - Unstructured Text Analysis - Final assignment"
+author: "Bence L. Toth (166504)"
+date: "May 18th, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Chapter 1
+
+```{r libraries, results = 'hide'}
+library(tidytext)
+library(dplyr)
+```
+
+## remove [%], x2 etc.
+
+```{r import}
+require(XLConnect)
+wb = loadWorkbook("songlyrics.xlsx")
+df = readWorksheet(wb, sheet = "songlyrics", header = TRUE)
+```
+
