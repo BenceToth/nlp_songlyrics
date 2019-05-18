@@ -32,6 +32,7 @@ library(stringr)
 library(ggplot2)
 library(tidyr)
 library(data.table)
+library(gridExtra)
 ```
 
 
@@ -56,7 +57,7 @@ Does song lyrics have any impact on the success of an artist, or is it all about
 ```{r import}
 require(XLConnect)
 wb = loadWorkbook("songlyrics.xlsx")
-df = readWorksheet(wb, sheet = "songlyrics", header = TRUE)
+df = data.frame(readWorksheet(wb, sheet = "songlyrics", header = TRUE))
 ```
 
 The `songlyrics.xlsx` dataset contains lyrics for 6 emblematic figures of different genres and times, using their most sold album.
@@ -154,5 +155,77 @@ cor.test(data = frequency[frequency$author == 'Eminem', ], ~ proportion + `Metal
 ```
 
 This is expected, as the dataset spans over 31 years (1980-2011) and uses 6 different genres. It was expected that different types of music will have different word choices.
+
+We can also check how word frequencies are different for each genre:
+
+```{r wordbyartist, echo = FALSE}
+
+  grid.arrange(tidy_df %>%
+      filter(artist == 'Adele') %>% 
+      count(word, sort = TRUE) %>%
+      filter(n > 10) %>% 
+      mutate(word = reorder(word, n)) %>% 
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      coord_flip() +
+      ggtitle('Soul'),
+    tidy_df %>%
+      filter(artist == 'Eminem') %>% 
+      count(word, sort = TRUE) %>%
+      filter(n > 25) %>% 
+      mutate(word = reorder(word, n)) %>% 
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      coord_flip() +
+      ggtitle('Rap'),
+    tidy_df %>%
+      filter(artist == 'Metallica') %>% 
+      count(word, sort = TRUE) %>%
+      filter(n > 10) %>% 
+      mutate(word = reorder(word, n)) %>% 
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      coord_flip() +
+      ggtitle('Metal'),
+    tidy_df %>%
+      filter(artist == 'Michael Jackson') %>% 
+      count(word, sort = TRUE) %>%
+      filter(n > 20) %>% 
+      mutate(word = reorder(word, n)) %>% 
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      coord_flip() +
+      ggtitle('Pop'),
+    tidy_df %>%
+      filter(artist == 'AC/DC') %>% 
+      count(word, sort = TRUE) %>%
+      filter(n > 20) %>% 
+      mutate(word = reorder(word, n)) %>% 
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      coord_flip() +
+      ggtitle('rock'),
+    tidy_df %>%
+      filter(artist == 'Bob Marley & The Wailers') %>% 
+      count(word, sort = TRUE) %>%
+      filter(n > 20) %>% 
+      mutate(word = reorder(word, n)) %>% 
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      coord_flip() +
+      ggtitle('Reggae'),
+    ncol = 3, nrow = 2) 
+```
+
+Soul is about *love* and *tears*, rap has a lot of cursing, metal is about *struggle* and *misery* and reggae is about *love* and the *people*.
+
+## Is This Love
+
 
 
